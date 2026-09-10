@@ -68,6 +68,10 @@ def recent_security_events():
             username,
             risk_level,
             risk_score,
+            destination_ip,
+            protocol,
+            source_port,
+            destination_port,
             created_at
         FROM security_events
         ORDER BY id DESC
@@ -90,10 +94,68 @@ def recent_security_events():
             "username": row[4],
             "risk_level": row[5],
             "risk_score": float(row[6]) if row[6] is not None else None,
-            "created_at": row[7].isoformat() if row[7] else None
+            "destination_ip": row[7],
+            "protocol": row[8],
+            "source_port": row[9],
+            "destination_port": row[10],
+            "created_at": row[11].isoformat() if row[11] else None
         })
 
     events.reverse()
+
+    return {
+        "total_events": len(events),
+        "events": events
+    }
+
+
+@app.get("/api/security/network/events")
+def network_security_events():
+    connection = get_database_connection()
+    cursor = connection.cursor()
+
+    cursor.execute("""
+        SELECT
+            id,
+            timestamp,
+            event_type,
+            source_ip,
+            destination_ip,
+            protocol,
+            source_port,
+            destination_port,
+            risk_level,
+            risk_score
+        FROM security_events
+        WHERE event_type IN (
+            'network_activity',
+            'possible_port_scan',
+            'suspicious_network_service'
+        )
+        ORDER BY id DESC
+        LIMIT 50
+    """)
+
+    rows = cursor.fetchall()
+
+    cursor.close()
+    connection.close()
+
+    events = []
+
+    for row in rows:
+        events.append({
+            "id": row[0],
+            "timestamp": row[1].isoformat() if row[1] else None,
+            "event_type": row[2],
+            "source_ip": row[3],
+            "destination_ip": row[4],
+            "protocol": row[5],
+            "source_port": row[6],
+            "destination_port": row[7],
+            "risk_level": row[8],
+            "risk_score": float(row[9]) if row[9] is not None else None
+        })
 
     return {
         "total_events": len(events),
